@@ -14,8 +14,7 @@ import re
 
 
 #Define some global parameters here that should not change 
-curDir = '/research/Samples/2016/EuO_10-5/lockin/RT/'
-#curDir = '/research/2016/Samples/2016/EuO_10-5/lockin/RT/'
+curDir = './'
 dataFile_ext = '.txt'
 
 menu_titles = ["Rename","Plot Label","Remove item (del)","Save array to file","Average arrays"]
