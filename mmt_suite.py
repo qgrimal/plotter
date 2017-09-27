@@ -97,19 +97,25 @@ class TheGUI(wx.Frame):
         helpMenu = wx.Menu()
 
         #open_files = wx.FileDialog(self,"Import",'','',"data files | *.txt",wx.FD_OPEN)
+        file_new = fileMenu.Append(wx.NewId(),'New Session (Ctrl+N)','Start new session')
         file_import = fileMenu.Append(wx.FD_OPEN,'Import(Ctrl+O)','Import Datafiles')
         file_close = fileMenu.Append(wx.ID_EXIT,'Quit','Quit Program')
-        redefine_array = editMenu.Append(1,'Redefine Arrays','Redefine Arrays')
-        help_help = helpMenu.Append(1,'Help','Help')  ##Add accordingly
-        help_about = helpMenu.Append(1,'About','About the program')
+        self.ID_REDEFINE_ARRAY = wx.NewId()
+        redefine_array = editMenu.Append(self.ID_REDEFINE_ARRAY,'Redefine Arrays','Redefine Arrays')
+
+        self.ID_HELP_HELP = wx.NewId()
+        help_help = helpMenu.Append(self.ID_HELP_HELP,'Help','Help')  ##Add accordingly
+        self.ID_HELP_ABOUT = wx.NewId()
+        help_about = helpMenu.Append(self.ID_HELP_ABOUT,'About','About the program')
 
         menubar.Append(fileMenu,'&File')
         menubar.Append(editMenu,'&Operations')
         menubar.Append(helpMenu,'&Help')
 
         self.SetMenuBar(menubar)
+        self.Bind(wx.EVT_MENU,self.NewSession,file_new)
         self.Bind(wx.EVT_MENU,self.OpenFile,file_import)
-        #self.Bind(wx.EVT_MENU,self.redefArrays,redefine_array)
+        self.Bind(wx.EVT_MENU,self.redefArrays,redefine_array)
         #There is an issue here in which if this is activated, import_file will not 
         #generate a open file dialog
 
@@ -242,6 +248,12 @@ class TheGUI(wx.Frame):
             self.currentDirectory = lastDir
 
         dialog.Destroy()
+
+    #If this is invoked, start a new session in a new window
+    def NewSession(self,event):
+/usr/lib/python2.7/site-packages/wx-3.0-gtk2/wx/_core.py:16629: UserWarning: wxPython/wxWidgets release number mismatch
+  warnings.warn("wxPython/wxWidgets release number mismatch")
+Still need to implement
 
     # Double-click action on an item in listbox
     def listBox_dblclk(self,event):
