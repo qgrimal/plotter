@@ -251,9 +251,9 @@ class TheGUI(wx.Frame):
 
     #If this is invoked, start a new session in a new window
     def NewSession(self,event):
-/usr/lib/python2.7/site-packages/wx-3.0-gtk2/wx/_core.py:16629: UserWarning: wxPython/wxWidgets release number mismatch
-  warnings.warn("wxPython/wxWidgets release number mismatch")
-Still need to implement
+        print "Still need to implement"
+        pass
+
 
     # Double-click action on an item in listbox
     def listBox_dblclk(self,event):
