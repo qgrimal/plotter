@@ -2,3 +2,6 @@
 
 
 Need to add a new option in the file menu to work with differnt files
+
+#save variables :: use pickle or other module
+#load variables :: see above
