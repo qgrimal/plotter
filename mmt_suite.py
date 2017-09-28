@@ -1,16 +1,19 @@
-#!/usr/bin/python1
+#!/usr/bin/python
+
+#Need to figure out if a single import will work for all modules
 
 import scipy as sp
+from scipy.optimize import curve_fit
+from scipy.interpolate import interp1d
+import wx
 import matplotlib
 matplotlib.use('WXAgg')
 #matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 import matplotlib.pyplot as pp
-from scipy.optimize import curve_fit
-from scipy.interpolate import interp1d
-import os
-import wx
-import random
-import re
+
+#These are the classes needed for the GUI to function
+from import_class import Import
+from plotter import Plotter
 
 
 #Define some global parameters here that should not change 
@@ -22,138 +25,6 @@ menu_title_by_id = {}
 for title in menu_titles:
     menu_title_by_id[ wx.NewId() ] = title
 
-
-class Import():
-    """This creates an object with a particular filename that imports the full arrays associated with the file"""
-    """ Usage : file_object = Import(filename) """
-
-    def __init__(self,filename):
-        self.filename = filename.split('/')[-1]
-        self.label = ''     #Need to split label according to MR or RT
-        #self.arrays = self.import_arrays()
-        #self.xyArray = self.import_xyArray()
-        self.interp_pts = 100   #Number of pts for interpolation
-
-        self.xArray_expr = ''
-        self.yArray_expr = ''
-
-    #Still need to implement data delimiter choosing
-    def import_arrays(self):
-        open_file = sp.genfromtxt(self.filename)
-        return open_file
-
-    #The columns are defined in gnuplot style i.e. $0,$1,...
-    #The replaced open_file is defined per import_xyarray method below
-    def define_xArray(self):
-        all_columns = re.findall('\$[0-9]*',self.xArray_expr)
-        sub_expr = self.xArray_expr
-        for item in all_columns:
-            sub_expr = sub_expr.replace(item,'open_file[:,%s]'%item[1:])
-        self.xArray_expr = sub_expr
-
-    def define_yArray(self):
-        all_columns = re.findall('\$[0-9]*',self.yArray_expr)
-        sub_expr = self.yArray_expr
-        for item in all_columns:
-            sub_expr = sub_expr.replace(item,'open_file[:,%s]'%item[1:])
-        self.yArray_expr = sub_expr
-
-
-    # Always keep the xarray in ascending order
-    def import_xyArray(self):
-        self.define_xArray()
-        self.define_yArray()
-        open_file = self.import_arrays()
-        xArray = eval(self.xArray_expr)
-        yArray = eval(self.yArray_expr)
-        self.xyArray = sp.array([xArray,yArray])
-        return self.xyArray
-
-    def normalize(self):  
-        #Only normalization to max value. Need to implement local max normalization. Only yArray is normalized
-        normalized = self.xyArray[1]/max(self.xyArray[1])
-        return sp.array([self.xyArray[0],normalized])
-
-    def array_reversal(self):
-        return sp.array([self.xyArray[0,::-1],self.xyArray[1,::-1]])
-
-    # Interpolation. Ensure that the datapoints are within the xarray limits - not to exceed boundary
-    def interpolate(self,xyarray,numpts):
-        min_xarray = min(xyarray[0])
-        max_xarray = max(xyarray[1])
-        stepVal = (max_xarray-min_xarray)/len(xarray)
-        interp_func = interp1d(xarray,yarray)
-        x_interp = sp.linspace(min_xarray+stepVal,max_xarray-stepVal,numpts)
-        y_interp = interp_func(x_interp)
-        return sp.array([x_interp,y_interp])
-
-    #Averages two or more arrays. Each arg is a (x,y) array. Returns (xAvg,yAvg)
-    def average(self,*arg):
-        to_average_arrays = []
-        print len(arg), 'arrays selected for averaging'
-        for item in range(len(arg)):
-            interp_arrays = self.interpolate(item,self.interp_pts)
-            to_average_arrays.append(interp_arrays)
-        self.toAverage = sp.array(to_average_arrays)
-        averageArray = sp.average(to_average_arrays,axis=0)
-        return averageArray
-        
-
-
-class Plotter():
-    '''All the plotting needs are satisfied by this class '''
-    '''Usage : Plotter(array_object) ;     where, array object is from Import() class'''
-
-    #Need to find a way to choose a different marker color, type, linetype, etc. for each this class is invoked
-    # An idea is to continually update a list depending on the length of the listbox from GUI
-    # Plotting is very slow. Find a way to minimize the time
-    def __init__(self,xyArray):
-        self.xarray = xyArray[0]
-        self.yarray = xyArray[1]
-
-        self.xlabel = 'x'
-        self.ylabel = 'y'
-        self.xlim = sp.array([min(self.xarray),max(self.xarray)])
-        self.ylim = sp.array([min(self.yarray),max(self.yarray)])
-
-        self.markersize = 5
-        self.mew = 0.0001
-        self.markerstyles = ['>','o','D','^','8','s','<','h','d','*','v','+','H',',']*5
-        self.fillstyles = ['full','left','right','left','bottom','top','none']
-        self.colors = ['b','g','r','c','m','y','k']
-        for i in range(50):
-            self.colors.append(self.random_color())
-
-        self.set_marker = ''
-        self.color = ''
-        self.linewidth = 1
-        self.set_fill = self.fillstyles[0]     # Change this
-        self.label =  ''     #Need to change this to something else
-
-
-        #Need to add more
-
-    def random_color(self):
-        return ''.join([random.choice('0123456789ABCDEF') for i in range(6)])
-
-# Need to find a way to add all figures for different files in single Figure() instance
-# Right now, the main problem is that only a single file is being plotted no matter what is being selected. Change that
-#    def plot_window(self):
-#        pp.ion()
-#        self.figure = pp.figure()
-#        self.axis = self.figure.add_axes([.1,.1,.85,.85])
-#        self.axis.set_xlabel = self.xlabel
-#        self.axis.set_ylabel = self.ylabel
-#        self.axis.set_xlim(self.xlim)
-#        self.axis.set_ylim(self.ylim)
-
-    def plot(self):
-        pp.ion()
-        pp.plot(self.xarray,self.yarray,label=self.label,markersize=self.markersize,\
-                marker=self.set_marker,fillstyle=self.set_fill,mew=self.mew)
-        pp.legend()
-
-
 class TheGUI(wx.Frame):
     """ This is the GUI frontend for the program """
 
@@ -164,8 +35,9 @@ class TheGUI(wx.Frame):
         #All the variables from a file are appended to the lists
         self.currentList = []
         self.fileObjects = []
-        self.arrayObjects = []
-        self.xyArrays = []
+        self.arrayObjects = [] #Need to change this to a dictionary
+        self.xyArrays = [] #Need to change this to a dictionary??
+        self.xyArrays_orig = []   #This is the original xyArrrays, in case xyArrays is modified (normalize, or others)
         self.plots = []
         self.xlabel = ''
         self.ylabel = ''
@@ -187,15 +59,20 @@ class TheGUI(wx.Frame):
         self.panel = wx.Panel(self)
         self.box0 = wx.BoxSizer(wx.HORIZONTAL)
         self.box1 = wx.BoxSizer(wx.VERTICAL)
+        self.box1a = wx.BoxSizer(wx.HORIZONTAL)
+        self.box2 = wx.BoxSizer(wx.VERTICAL)
         self.listBox = wx.ListBox(self.panel,size=(300,-1),choices=self.currentList,style=wx.LB_MULTIPLE)
         self.normalize_button = wx.Button(self.panel,id=wx.ID_ANY,label='Normalize')
+        self.unnormalize_button = wx.Button(self.panel,id=wx.ID_ANY,label='Un-Normalize')
         self.legendToggle_button = wx.Button(self.panel,id=wx.ID_ANY,label='Legend On/Off')
         self.plotWindow_button = wx.Button(self.panel,id=wx.ID_ANY,label='Plot Window Settings')
         self.rePlot_button = wx.Button(self.panel,id=wx.ID_ANY,label='Update Plot')
         self.exit_button = wx.Button(self.panel,id=wx.ID_ANY,label='Exit')
         self.box0.Add(self.listBox,0,wx.EXPAND)
         self.box0.Add(self.box1,1)
-        self.box1.Add(self.normalize_button,0)
+        self.box1.Add(self.box1a,2)
+        self.box1a.Add(self.normalize_button,0)
+        self.box1a.Add(self.unnormalize_button,1)
         self.box1.Add(self.legendToggle_button,1)
         self.box1.Add(self.plotWindow_button,2)
         self.box1.Add(self.rePlot_button,3)
@@ -213,6 +90,7 @@ class TheGUI(wx.Frame):
         self.listBox.Bind(wx.EVT_LISTBOX_DCLICK,self.listBox_dblclk)
         self.listBox.Bind(wx.EVT_RIGHT_DOWN,self.RightClick)
         self.normalize_button.Bind(wx.EVT_BUTTON,self.normalize_click)
+        self.unnormalize_button.Bind(wx.EVT_BUTTON,self.unnormalize_click)
         self.legendToggle_button.Bind(wx.EVT_BUTTON,self.legend_toggle)
         self.plotWindow_button.Bind(wx.EVT_BUTTON,self.plotWindow_settings)
         self.rePlot_button.Bind(wx.EVT_BUTTON,self.update_plot)
@@ -221,12 +99,28 @@ class TheGUI(wx.Frame):
     # The menubar
         menubar = wx.MenuBar()
         fileMenu = wx.Menu()
+        editMenu = wx.Menu()
+        helpMenu = wx.Menu()
+
         #open_files = wx.FileDialog(self,"Import",'','',"data files | *.txt",wx.FD_OPEN)
+        file_new = fileMenu.Append(wx.NewId(),'New Session (Ctrl+N)','Start new session')
         file_import = fileMenu.Append(wx.FD_OPEN,'Import(Ctrl+O)','Import Datafiles')
         file_close = fileMenu.Append(wx.ID_EXIT,'Quit','Quit Program')
+        redefine_array = editMenu.Append(wx.ID_ANY,'Redefine Arrays','Redefine Arrays')
+
+        self.ID_HELP_HELP = wx.NewId()
+        help_help = helpMenu.Append(self.ID_HELP_HELP,'Help','Help')  ##Add accordingly
+        self.ID_HELP_ABOUT = wx.NewId()
+        help_about = helpMenu.Append(self.ID_HELP_ABOUT,'About','About the program')
+
         menubar.Append(fileMenu,'&File')
+        menubar.Append(editMenu,'&Operations')
+        menubar.Append(helpMenu,'&Help')
+
         self.SetMenuBar(menubar)
+        self.Bind(wx.EVT_MENU,self.NewSession,file_new)
         self.Bind(wx.EVT_MENU,self.OpenFile,file_import)
+        self.Bind(wx.EVT_MENU,self.redefArrays,redefine_array)
 
         self.Bind(wx.EVT_MENU,self.onQuit,file_close)
         accel_tbl = wx.AcceleratorTable([(wx.ACCEL_CTRL,ord('o'),file_import.GetId())])
@@ -254,6 +148,14 @@ class TheGUI(wx.Frame):
             self.xyArrays[i] = self.fileObjects[i].normalize()
         pp.clf()
         self.plot_list()
+
+    #This is to revert the normalized plot to non-normalized. Need to implement this after changing fileObjects to dictionary
+    def unnormalize_click(self,event):
+        for i in range(len(self.xyArrays)):
+            self.xyArrays[i] = self.xyArrays_orig[i]
+        pp.clf()
+        self.plot_list()
+
 
     def legend_toggle(self,event):
         self.plotLegend_bool = not self.plotLegend_bool
@@ -285,7 +187,7 @@ class TheGUI(wx.Frame):
         dialog_window.Destroy()
 
     def update_plot(self,event):
-        pp.close()
+        #pp.close()
         self.plot_list()
         
 
@@ -305,11 +207,19 @@ class TheGUI(wx.Frame):
             pp.legend().remove()
         if self.xylabelFlag:
             pp.xlabel(self.xlabel)
-            pp.ylabel(self.ylabel)
-            pp.title(self.title)
+        pp.ylabel(self.ylabel)
+        pp.title(self.title)
 
+    def redefArrays(self,event):
+        array_definition = ArrayDefineDialog(None,title='Define Arrays')
+        array_definition.ShowModal()
+        self.arrays_defined = True
+        self.xArray_expr = array_definition.xArray_expr
+        self.yArray_expr = array_definition.yArray_expr
+        array_definition.Destroy()
 
-    #This method opens files and plots them directly. All plotting parameters are defined in the Plotter() class as lists
+    #This method opens files and plots them directly. 
+    #All plotting parameters are defined in the Plotter() class as lists
     # and the position of file in the import determines these parameters
     def OpenFile(self,event):
         wildcard = "Data files (*.txt)|*.txt|" "CSV files (*.csv)|*.csv|" "All Files (*.*)|*.*"
@@ -322,6 +232,7 @@ class TheGUI(wx.Frame):
             array_definition.Destroy()
         dialog = wx.FileDialog(self,message='Import data files',defaultDir=self.currentDirectory,\
                 wildcard=wildcard, style=wx.OPEN|wx.MULTIPLE|wx.CHANGE_DIR)
+
         if dialog.ShowModal() == wx.ID_OK:
             sel_files = dialog.GetPaths()
             for anItem in sel_files:
@@ -338,6 +249,7 @@ class TheGUI(wx.Frame):
                     xy_array = individual_file.import_xyArray()
                     self.arrayObjects.append(full_array)
                     self.xyArrays.append(xy_array)
+                    self.xyArrays_orig.append(xy_array)
                 else:
                     print "File already appended to list. Skipping"
             self.plot_list()
@@ -348,6 +260,12 @@ class TheGUI(wx.Frame):
             self.currentDirectory = lastDir
 
         dialog.Destroy()
+
+    #If this is invoked, start a new session in a new window
+    def NewSession(self,event):
+        print "Still need to implement"
+        pass
+
 
     # Double-click action on an item in listbox
     def listBox_dblclk(self,event):
