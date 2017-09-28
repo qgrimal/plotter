@@ -35,8 +35,9 @@ class TheGUI(wx.Frame):
         #All the variables from a file are appended to the lists
         self.currentList = []
         self.fileObjects = []
-        self.arrayObjects = []
-        self.xyArrays = []
+        self.arrayObjects = [] #Need to change this to a dictionary
+        self.xyArrays = [] #Need to change this to a dictionary??
+        self.xyArrays_orig = []   #This is the original xyArrrays, in case xyArrays is modified (normalize, or others)
         self.plots = []
         self.xlabel = ''
         self.ylabel = ''
@@ -45,7 +46,6 @@ class TheGUI(wx.Frame):
         self.title = ''
         self.xArray_expr = ''
         self.yArray_expr = ''
-        self.ID_REDEF_ARR = None
 
         #Some flags
         self.plotLegend_bool = True       #Display legend or not
@@ -59,15 +59,20 @@ class TheGUI(wx.Frame):
         self.panel = wx.Panel(self)
         self.box0 = wx.BoxSizer(wx.HORIZONTAL)
         self.box1 = wx.BoxSizer(wx.VERTICAL)
+        self.box1a = wx.BoxSizer(wx.HORIZONTAL)
+        self.box2 = wx.BoxSizer(wx.VERTICAL)
         self.listBox = wx.ListBox(self.panel,size=(300,-1),choices=self.currentList,style=wx.LB_MULTIPLE)
         self.normalize_button = wx.Button(self.panel,id=wx.ID_ANY,label='Normalize')
+        self.unnormalize_button = wx.Button(self.panel,id=wx.ID_ANY,label='Un-Normalize')
         self.legendToggle_button = wx.Button(self.panel,id=wx.ID_ANY,label='Legend On/Off')
         self.plotWindow_button = wx.Button(self.panel,id=wx.ID_ANY,label='Plot Window Settings')
         self.rePlot_button = wx.Button(self.panel,id=wx.ID_ANY,label='Update Plot')
         self.exit_button = wx.Button(self.panel,id=wx.ID_ANY,label='Exit')
         self.box0.Add(self.listBox,0,wx.EXPAND)
         self.box0.Add(self.box1,1)
-        self.box1.Add(self.normalize_button,0)
+        self.box1.Add(self.box1a,2)
+        self.box1a.Add(self.normalize_button,0)
+        self.box1a.Add(self.unnormalize_button,1)
         self.box1.Add(self.legendToggle_button,1)
         self.box1.Add(self.plotWindow_button,2)
         self.box1.Add(self.rePlot_button,3)
@@ -85,6 +90,7 @@ class TheGUI(wx.Frame):
         self.listBox.Bind(wx.EVT_LISTBOX_DCLICK,self.listBox_dblclk)
         self.listBox.Bind(wx.EVT_RIGHT_DOWN,self.RightClick)
         self.normalize_button.Bind(wx.EVT_BUTTON,self.normalize_click)
+        self.unnormalize_button.Bind(wx.EVT_BUTTON,self.unnormalize_click)
         self.legendToggle_button.Bind(wx.EVT_BUTTON,self.legend_toggle)
         self.plotWindow_button.Bind(wx.EVT_BUTTON,self.plotWindow_settings)
         self.rePlot_button.Bind(wx.EVT_BUTTON,self.update_plot)
@@ -100,8 +106,7 @@ class TheGUI(wx.Frame):
         file_new = fileMenu.Append(wx.NewId(),'New Session (Ctrl+N)','Start new session')
         file_import = fileMenu.Append(wx.FD_OPEN,'Import(Ctrl+O)','Import Datafiles')
         file_close = fileMenu.Append(wx.ID_EXIT,'Quit','Quit Program')
-        self.ID_REDEFINE_ARRAY = wx.NewId()
-        redefine_array = editMenu.Append(self.ID_REDEFINE_ARRAY,'Redefine Arrays','Redefine Arrays')
+        redefine_array = editMenu.Append(wx.ID_ANY,'Redefine Arrays','Redefine Arrays')
 
         self.ID_HELP_HELP = wx.NewId()
         help_help = helpMenu.Append(self.ID_HELP_HELP,'Help','Help')  ##Add accordingly
@@ -116,8 +121,6 @@ class TheGUI(wx.Frame):
         self.Bind(wx.EVT_MENU,self.NewSession,file_new)
         self.Bind(wx.EVT_MENU,self.OpenFile,file_import)
         self.Bind(wx.EVT_MENU,self.redefArrays,redefine_array)
-        #There is an issue here in which if this is activated, import_file will not 
-        #generate a open file dialog
 
         self.Bind(wx.EVT_MENU,self.onQuit,file_close)
         accel_tbl = wx.AcceleratorTable([(wx.ACCEL_CTRL,ord('o'),file_import.GetId())])
@@ -145,6 +148,14 @@ class TheGUI(wx.Frame):
             self.xyArrays[i] = self.fileObjects[i].normalize()
         pp.clf()
         self.plot_list()
+
+    #This is to revert the normalized plot to non-normalized. Need to implement this after changing fileObjects to dictionary
+    def unnormalize_click(self,event):
+        for i in range(len(self.xyArrays)):
+            self.xyArrays[i] = self.xyArrays_orig[i]
+        pp.clf()
+        self.plot_list()
+
 
     def legend_toggle(self,event):
         self.plotLegend_bool = not self.plotLegend_bool
@@ -176,7 +187,7 @@ class TheGUI(wx.Frame):
         dialog_window.Destroy()
 
     def update_plot(self,event):
-        pp.close()
+        #pp.close()
         self.plot_list()
         
 
@@ -238,6 +249,7 @@ class TheGUI(wx.Frame):
                     xy_array = individual_file.import_xyArray()
                     self.arrayObjects.append(full_array)
                     self.xyArrays.append(xy_array)
+                    self.xyArrays_orig.append(xy_array)
                 else:
                     print "File already appended to list. Skipping"
             self.plot_list()

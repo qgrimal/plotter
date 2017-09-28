@@ -17,6 +17,7 @@ class Import():
 
         self.xArray_expr = ''
         self.yArray_expr = ''
+        self.object_prop = {filename:[]}     #This is the dictionary that keeps all values of the object
 
     #Still need to implement data delimiter choosing
     def import_arrays(self):
@@ -59,6 +60,7 @@ class Import():
         return sp.array([self.xyArray[0,::-1],self.xyArray[1,::-1]])
 
     # Interpolation. Ensure that the datapoints are within the xarray limits - not to exceed boundary
+    # This only accounts for linear points between min and max of the array. Need to implement different scalings 
     def interpolate(self,xyarray,numpts):
         min_xarray = min(xyarray[0])
         max_xarray = max(xyarray[1])
