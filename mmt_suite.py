@@ -6,10 +6,13 @@ import scipy as sp
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 import wx
+import sys
 import matplotlib
 matplotlib.use('WXAgg')
 #matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 import matplotlib.pyplot as pp
+from collections import defaultdict
+import random
 
 #These are the classes needed for the GUI to function
 from import_class import Import
@@ -31,13 +34,11 @@ class TheGUI(wx.Frame):
     def __init__(self,*args,**kwargs):
         super(TheGUI,self).__init__(size=(500,500),*args,**kwargs)
         self.currentDirectory = curDir
+        self.SetTitle('Measurement Analysis and Plotting')
 
         #All the variables from a file are appended to the lists
-        self.currentList = []
-        self.fileObjects = []
-        self.arrayObjects = [] #Need to change this to a dictionary
-        self.xyArrays = [] #Need to change this to a dictionary??
-        self.xyArrays_orig = []   #This is the original xyArrrays, in case xyArrays is modified (normalize, or others)
+        self.objects = defaultdict(list)
+        self.currentList = []               #This list goes along with the listbox (needed for the listbox)
         self.plots = []
         self.xlabel = ''
         self.ylabel = ''
@@ -98,34 +99,30 @@ class TheGUI(wx.Frame):
         
     # The menubar
         menubar = wx.MenuBar()
-        fileMenu = wx.Menu()
-        editMenu = wx.Menu()
-        helpMenu = wx.Menu()
-
-        #open_files = wx.FileDialog(self,"Import",'','',"data files | *.txt",wx.FD_OPEN)
-        file_new = fileMenu.Append(wx.NewId(),'New Session (Ctrl+N)','Start new session')
-        file_import = fileMenu.Append(wx.FD_OPEN,'Import(Ctrl+O)','Import Datafiles')
-        file_close = fileMenu.Append(wx.ID_EXIT,'Quit','Quit Program')
-        redefine_array = editMenu.Append(wx.ID_ANY,'Redefine Arrays','Redefine Arrays')
-
-        self.ID_HELP_HELP = wx.NewId()
-        help_help = helpMenu.Append(self.ID_HELP_HELP,'Help','Help')  ##Add accordingly
-        self.ID_HELP_ABOUT = wx.NewId()
-        help_about = helpMenu.Append(self.ID_HELP_ABOUT,'About','About the program')
-
-        menubar.Append(fileMenu,'&File')
-        menubar.Append(editMenu,'&Operations')
-        menubar.Append(helpMenu,'&Help')
-
         self.SetMenuBar(menubar)
+
+        fileMenu = wx.Menu()
+        menubar.Append(fileMenu,'&File')
+        file_new = fileMenu.Append(wx.NewId(),'New Session (Ctrl+N)','Start new session')
         self.Bind(wx.EVT_MENU,self.NewSession,file_new)
+        #open_session = wx.FileDialog(self,"Import",'','',"data files | *.txt",wx.FD_OPEN)
+        file_import = fileMenu.Append(wx.FD_OPEN,'Import(Ctrl+O)','Import Datafiles')
         self.Bind(wx.EVT_MENU,self.OpenFile,file_import)
+        file_close = fileMenu.Append(wx.ID_EXIT,'Quit','Quit Program')
+        self.Bind(wx.EVT_MENU,self.onQuit,file_close)
+
+        editMenu = wx.Menu()
+        menubar.Append(editMenu,'&Operations')
+        redefine_array = editMenu.Append(wx.ID_ANY,'Redefine Arrays','Redefine Arrays')
         self.Bind(wx.EVT_MENU,self.redefArrays,redefine_array)
 
-        self.Bind(wx.EVT_MENU,self.onQuit,file_close)
+        helpMenu = wx.Menu()
+        menubar.Append(helpMenu,'&Help')
+        help_help = helpMenu.Append(wx.ID_ANY,'Help','Help')  ##Add accordingly
+        help_about = helpMenu.Append(wx.ID_ANY,'About','About the program')
+
         accel_tbl = wx.AcceleratorTable([(wx.ACCEL_CTRL,ord('o'),file_import.GetId())])
         self.SetAcceleratorTable(accel_tbl)
-        self.SetTitle('Measurement Analysis and Plotting')
         self.Centre()
         self.Show(True)
 
@@ -144,15 +141,16 @@ class TheGUI(wx.Frame):
     #Need a normalize flag so that any subsequent imports will auto import normalized arrays
     #Need to add option to revert back to normal
     def normalize_click(self,event):
-        for i in range(len(self.xyArrays)):
-            self.xyArrays[i] = self.fileObjects[i].normalize()
+        for item in self.objects:
+            self.objects[item][0].normalize()
+            self.objects[item][1] = self.objects[item][0].normalized
         pp.clf()
         self.plot_list()
 
     #This is to revert the normalized plot to non-normalized. Need to implement this after changing fileObjects to dictionary
     def unnormalize_click(self,event):
-        for i in range(len(self.xyArrays)):
-            self.xyArrays[i] = self.xyArrays_orig[i]
+        for item in self.objects:
+            self.objects[item][1] = self.objects[item][0].xyArray
         pp.clf()
         self.plot_list()
 
@@ -194,28 +192,40 @@ class TheGUI(wx.Frame):
     #Make separate instances for flags and add all in a single method. Call the method whenever pp.plot() is called
     #This will help ensure that the plots will remain the same 
     def plot_list(self):
-        for i in range(len(self.xyArrays)):
-            single_plot = Plotter(self.xyArrays[i])
-            single_plot.label = self.currentList[i]
-            single_plot.set_marker = single_plot.markerstyles[i]
-            single_plot.set_color = single_plot.colors[i]
+        for each_file in self.objects:
+            single_plot = Plotter(self.objects[each_file][1])
+            single_plot.label = self.objects[each_file][2]
             single_plot.xlabel = self.xlabel
             single_plot.ylabel = self.ylabel
-            single_plot.xlim = self.xlims
-            self.plots.append(single_plot.plot())
+            self.objects[each_file].append(single_plot)  # Third item is for the plot
+            single_plot.plot()
+            
         if not self.plotLegend_bool:
             pp.legend().remove()
-        if self.xylabelFlag:
-            pp.xlabel(self.xlabel)
-        pp.ylabel(self.ylabel)
-        pp.title(self.title)
 
+
+#This method redefines the array from previous definition and then replots the new one
     def redefArrays(self,event):
         array_definition = ArrayDefineDialog(None,title='Define Arrays')
         array_definition.ShowModal()
         self.arrays_defined = True
         self.xArray_expr = array_definition.xArray_expr
         self.yArray_expr = array_definition.yArray_expr
+        self.arrayObjects = []
+        self.xyArrays = []
+        self.xyArrays_orig = []
+        for item in self.files:
+            individual_file = Import(item)
+            individual_file.xArray_expr = self.xArray_expr
+            individual_file.yArray_expr = self.yArray_expr
+            self.fileObjects.append(individual_file)
+            full_array = individual_file.import_arrays()
+            xy_array = individual_file.import_xyArray()
+            self.arrayObjects.append(full_array)
+            self.xyArrays.append(xy_array)
+            self.xyArrays_orig.append(xy_array)
+        self.plot_list()
+
         array_definition.Destroy()
 
     #This method opens files and plots them directly. 
@@ -230,41 +240,45 @@ class TheGUI(wx.Frame):
             self.xArray_expr = array_definition.xArray_expr
             self.yArray_expr = array_definition.yArray_expr
             array_definition.Destroy()
-        dialog = wx.FileDialog(self,message='Import data files',defaultDir=self.currentDirectory,\
+            if array_definition.canceled:
+                self.arrays_defined = False
+
+        if self.arrays_defined:
+            dialog = wx.FileDialog(self,message='Import data files',defaultDir=self.currentDirectory,\
                 wildcard=wildcard, style=wx.OPEN|wx.MULTIPLE|wx.CHANGE_DIR)
 
-        if dialog.ShowModal() == wx.ID_OK:
-            sel_files = dialog.GetPaths()
-            for anItem in sel_files:
-                item = anItem.split('/')[-1]
-                print "Appending "+item
-                if item not in self.currentList:
-                    self.currentList.append(item)
-                    self.listBox.Append(item)
-                    individual_file = Import(anItem)
-                    individual_file.xArray_expr = self.xArray_expr
-                    individual_file.yArray_expr = self.yArray_expr
-                    self.fileObjects.append(individual_file)
-                    full_array = individual_file.import_arrays()
-                    xy_array = individual_file.import_xyArray()
-                    self.arrayObjects.append(full_array)
-                    self.xyArrays.append(xy_array)
-                    self.xyArrays_orig.append(xy_array)
-                else:
-                    print "File already appended to list. Skipping"
-            self.plot_list()
+            if dialog.ShowModal() == wx.ID_OK:
+                sel_files = dialog.GetPaths()
+                for anItem in sel_files:
+                    item = anItem.split('/')[-1]
+                    print "Appending "+item
+                    if item not in self.currentList:
+                        self.objects[anItem] = []
+                        self.listBox.Append(item)
+                        individual_file = Import(anItem)
+                        individual_file.import_arrays()
+                        individual_file.xArray_expr = self.xArray_expr
+                        individual_file.yArray_expr = self.yArray_expr
+                        xy_array = individual_file.import_xyArray()
 
-            lastDir = '/'
-            for i in anItem.split('/')[:-1]:
-                lastDir += i+'/'
-            self.currentDirectory = lastDir
+                        self.objects[anItem].append(individual_file)   #zeroth item of list is the xy array
+                        self.objects[anItem].append(xy_array)   #first item of list is the xy array
+                        self.objects[anItem].append(item)       #second item of list is the label to be used
+                    else:
+                        print "File already appended to list. Skipping"
+                self.plot_list()
 
-        dialog.Destroy()
+                lastDir = '/'
+                for i in anItem.split('/')[:-1]:
+                    lastDir += i+'/'
+                self.currentDirectory = lastDir
+
+            dialog.Destroy()
+
 
     #If this is invoked, start a new session in a new window
     def NewSession(self,event):
-        print "Still need to implement"
-        pass
+        execfile('mmt_suite.py')
 
 
     # Double-click action on an item in listbox
@@ -528,6 +542,7 @@ class ArrayDefineDialog(wx.Dialog):
         self.xArray_expr = ''
         self.yArray_expr = ''
         self.InitUI()
+        self.canceled = False
 
     #The user interface window
     def InitUI(self):
@@ -544,6 +559,8 @@ class ArrayDefineDialog(wx.Dialog):
         self.yColumnNum = wx.TextCtrl(self.panel)
         self.updateButton = wx.Button(self.panel,id=wx.ID_ANY,label='Set')
         self.updateButton.Bind(wx.EVT_BUTTON,self.updateLabel)
+        self.cancelButton = wx.Button(self.panel,id=wx.ID_ANY,label='Cancel')
+        self.cancelButton.Bind(wx.EVT_BUTTON,self.cancel_clicked)
         self.insert_helpText = wx.StaticText(self.panel,label='Insert column number preceeded by "$" (GNUPLOT STYLE).\n Eg : xColumn = $1/1000, yColumn=$7/$8')
 
         self.box0.Add(self.box1,0)
@@ -555,6 +572,7 @@ class ArrayDefineDialog(wx.Dialog):
         self.box2.Add(self.yColumn_text,0)
         self.box2.Add(self.yColumnNum,1)
         self.box3.Add(self.updateButton,0)
+        self.box3.Add(self.cancelButton,1)
         self.box4.Add(self.insert_helpText,0)
         
         self.panel.SetSizer(self.box0)
@@ -562,6 +580,10 @@ class ArrayDefineDialog(wx.Dialog):
         self.Centre()
 
     def onClose(self,event):
+        self.Destroy()
+
+    def cancel_clicked(self,event):
+        self.canceled = True
         self.Destroy()
 
     def updateLabel(self,event):
