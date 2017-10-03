@@ -11,50 +11,46 @@ class Import():
     def __init__(self,filename):
         self.filename = filename.split('/')[-1]
         self.label = ''     #Need to split label according to MR or RT
-        #self.arrays = self.import_arrays()
-        #self.xyArray = self.import_xyArray()
+        self.arrays = None
+        self.xyArray = None
         self.interp_pts = 100   #Number of pts for interpolation
 
         self.xArray_expr = ''
         self.yArray_expr = ''
         self.object_prop = {filename:[]}     #This is the dictionary that keeps all values of the object
+        self.normalized = None
 
     #Still need to implement data delimiter choosing
     def import_arrays(self):
-        open_file = sp.genfromtxt(self.filename)
-        return open_file
+        self.arrays = sp.genfromtxt(self.filename)
+        return self.arrays   #in case values need to be retrieved
 
     #The columns are defined in gnuplot style i.e. $0,$1,...
     #The replaced open_file is defined per import_xyarray method below
-    def define_xArray(self):
-        all_columns = re.findall('\$[0-9]*',self.xArray_expr)
-        sub_expr = self.xArray_expr
+    def define_array(self,expr):
+        all_columns = re.findall('\$[0-9]*',expr)
+        sub_expr = expr
         for item in all_columns:
             sub_expr = sub_expr.replace(item,'open_file[:,%s]'%item[1:])
-        self.xArray_expr = sub_expr
-
-    def define_yArray(self):
-        all_columns = re.findall('\$[0-9]*',self.yArray_expr)
-        sub_expr = self.yArray_expr
-        for item in all_columns:
-            sub_expr = sub_expr.replace(item,'open_file[:,%s]'%item[1:])
-        self.yArray_expr = sub_expr
-
+        return sub_expr
 
     # Always keep the xarray in ascending order
     def import_xyArray(self):
-        self.define_xArray()
-        self.define_yArray()
-        open_file = self.import_arrays()
+        if self.arrays is None:
+            self.import_arrays()
+
+        open_file = self.arrays
+        self.xArray_expr = self.define_array(self.xArray_expr)
+        self.yArray_expr = self.define_array(self.yArray_expr)
         xArray = eval(self.xArray_expr)
         yArray = eval(self.yArray_expr)
         self.xyArray = sp.array([xArray,yArray])
-        return self.xyArray
+        return self.xyArray         # To retrieve the xy arrays
 
-    def normalize(self):  
+    def normalize(self):
         #Only normalization to max value. Need to implement local max normalization. Only yArray is normalized
-        normalized = self.xyArray[1]/max(self.xyArray[1])
-        return sp.array([self.xyArray[0],normalized])
+        self.normalized = sp.array([self.xyArray[0],(self.xyArray[1]-min(self.xyArray[1]))/max(self.xyArray[1])])
+        return self.normalized
 
     def array_reversal(self):
         return sp.array([self.xyArray[0,::-1],self.xyArray[1,::-1]])
