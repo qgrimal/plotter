@@ -5,10 +5,6 @@ matplotlib.use('WXAgg')
 #matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 import matplotlib.pyplot as pp
 
-#Only a single figure can be used
-fig,ax = pp.subplots()
-
-
 class Plotter():
     '''All the plotting needs are satisfied by this class '''
     '''Usage : Plotter(array_object) ;     where, array object is from Import() class'''
@@ -20,24 +16,23 @@ class Plotter():
         self.xarray = xyArray[0]
         self.yarray = xyArray[1]
 
-        self.title = ''
         self.xlabel = 'x'
         self.ylabel = 'y'
         self.xlim = sp.array([min(self.xarray),max(self.xarray)])
         self.ylim = sp.array([min(self.yarray),max(self.yarray)])
 
         self.markersize = 5
-        self.mew = 0.01
+        self.mew = 0.0001
         self.markerstyles = ['>','o','D','^','8','s','<','h','d','*','v','+','H',',']*5
         self.fillstyles = ['full','left','right','left','bottom','top','none']
         self.colors = ['b','g','r','c','m','y','k']
         for i in range(50):
             self.colors.append(self.random_color())
 
-        self.set_marker = random.choice(self.markerstyles)
-        self.color = self.random_color()
+        self.set_marker = ''
+        self.color = ''
         self.linewidth = 1
-        self.set_fill = random.choice(self.fillstyles)     # Change this
+        self.set_fill = self.fillstyles[0]     # Change this
         self.label =  ''     #Need to change this to something else
 
 
@@ -59,11 +54,8 @@ class Plotter():
 
     def plot(self):
         pp.ion()
-        ax.set_xlabel(self.xlabel)
-        ax.set_ylabel(self.ylabel)
-        ax.plot(self.xarray,self.yarray,label=self.label,markersize=self.markersize,\
+        pp.plot(self.xarray,self.yarray,label=self.label,markersize=self.markersize,\
                 marker=self.set_marker,fillstyle=self.set_fill,mew=self.mew)
         pp.legend()
-        pp.show()
 
 
