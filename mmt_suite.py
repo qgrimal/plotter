@@ -206,6 +206,7 @@ class TheGUI(wx.Frame):
 
 
 #This method redefines the array from previous definition and then replots the new one
+#Need to use Try::except in case of index error
     def redefArrays(self,event):
         array_definition = ArrayDefineDialog(None,title='Define Arrays')
         array_definition.ShowModal()
@@ -253,6 +254,7 @@ class TheGUI(wx.Frame):
             dialog = wx.FileDialog(self,message='Import data files',defaultDir=self.currentDirectory,\
                 wildcard=wildcard, style=wx.OPEN|wx.MULTIPLE|wx.CHANGE_DIR)
 
+#Need to use Try::except in case of index error
             if dialog.ShowModal() == wx.ID_OK:
                 sel_files = dialog.GetPaths()
                 for anItem in sel_files:
