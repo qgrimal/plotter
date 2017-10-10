@@ -39,7 +39,6 @@ class TheGUI(wx.Frame):
         #All the variables from a file are appended to the lists
         self.objects = defaultdict(list)
         self.currentList = []               #This list goes along with the listbox (needed for the listbox)
-        self.plots = []
         self.xlabel = ''
         self.ylabel = ''
         self.xlims = []
@@ -198,7 +197,13 @@ class TheGUI(wx.Frame):
             single_plot.label = self.objects[each_file][2]
             single_plot.xlabel = self.xlabel
             single_plot.ylabel = self.ylabel
-            self.objects[each_file].append(single_plot)  # Third item is for the plot
+
+            #This will append the plot to the dictionary in case plot does not exist
+            try:      
+                self.objects[each_file][3] = single_plot
+            except IndexError:
+                self.objects[each_file].append(single_plot)  # Third item is for the plot
+
             single_plot.plot()
             
         if not self.plotLegend_bool:
@@ -218,8 +223,9 @@ class TheGUI(wx.Frame):
         self.xyArrays_orig = []
         self.listbox = []
         for item in self.objects:
-            plot_label = item.split('/')[-1]
-            self.listBox.Append(plot_label)
+            plot_label = self.objects[item][2] 
+            #plot_label = item.split('/')[-1]
+
             self.objects.pop(item)      #first remove the key
             self.objects[item] = []   #Then add it again
             individual_file = Import(item)
