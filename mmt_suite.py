@@ -356,9 +356,11 @@ class TheGUI(wx.Frame):
         current_marker = label_dialog.marker
         current_color = label_dialog.color
         current_linewidth = label_dialog.linewidth
-        self.currentList[selected_index] = current_label
+        for name,alist in self.objects.iteritems():
+            if alist[2] == self.listBox.GetString(selected_index):
+                alist[2] = current_label
         self.listBox.SetString(selected_index,current_label)
-        #self.plot_list()
+        self.update_plot()
         label_dialog.Destroy()
 
     #Save the xy arrays for the selected object as a datafile
